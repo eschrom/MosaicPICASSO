@@ -1,0 +1,18 @@
+Package: MosaicPICASSO
+Title: Removal of Autofluorescence and Spillover from Multiplex Images
+Version: 0.0.0.9000
+Authors@R: 
+    person("Edward", "Schrom", , "edward.schrom@nih.gov", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-1793-6433"))
+Description: MosaicPICASSO implements the algorithm developed by Seo et al [https://doi.org/10.1038/s41467-022-30168-z] and refined by Cang et al [https://doi.org/10.1101/2023.07.06.547878] to infer and remove artefacts of autofluorescence and spillover from multiplex images.
+License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
+    license
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Imports:
+	doParallel,
+	foreach,
+	ijtiff,
+	parallel,
+	tiff
