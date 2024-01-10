@@ -15,7 +15,7 @@ A manuscript that details and demonstrates Mosaic-PICASSO is posted on bioRxiv (
 ## Installation
 Once Mosaic-PICASSO is switched to a public repository, it can be installed from Github:
 - Install the R package "devtools" if you don't already have it.
-- Run the command devtools::install_github("eschrom/MosaicPICASSO", build.vignettes = TRUE)
+- Run the command devtools::install_github("eschrom/MosaicPICASSO", build_vignettes = TRUE)
 - Restart your R session
 
 Installation should only take a few minutes, but perhaps more if many of the dependencies must also be installed or updated.
