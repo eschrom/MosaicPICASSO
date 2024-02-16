@@ -72,10 +72,14 @@ mosaic_picasso <- function(file, method="MI", q_thr=0.5, tile_size=50, stride=50
     img[[g]] <- correct_image(img[[g]], p_mat_1)                                # Correct image via updated P matrix
     mat[[g]] <- p_mat_1
   }
-  for (i in 1:N_CH) {
-    grp <- which(unlist(lapply(groups, function(x,y) {y %in% x}, y=i)))
-    idx <- which(groups[[grp]] == i)
-    IMG[,,i] <- img[[grp]][,,idx]
+  if (!is.null(groups)) {
+    for (i in 1:N_CH) {
+      grp <- which(unlist(lapply(groups, function(x,y) {y %in% x}, y=i)))
+      idx <- which(groups[[grp]] == i)
+      IMG[,,i] <- img[[grp]][,,idx]
+    }
+  } else {
+    IMG <- img[[1]]
   }
   if (enhance) {                                                                # If contrast-enhancing final image
     print("Enhancing contrast.")
