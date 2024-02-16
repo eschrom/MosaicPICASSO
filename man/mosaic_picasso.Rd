@@ -11,8 +11,9 @@ mosaic_picasso(
   tile_size = 50,
   stride = 50,
   pix_ss = "all",
-  cycles = 1,
   enhance = T,
+  groups = NULL,
+  cycles = 1,
   cores = NULL
 )
 }
@@ -29,9 +30,11 @@ mosaic_picasso(
 
 \item{pix_ss}{Integer: number of pixels to randomly subsample for calculating MI or correlation}
 
-\item{cycles}{Integer: number of iterations of correction to perform}
-
 \item{enhance}{Logical: whether to enhance contrast in the corrected image}
+
+\item{groups}{List: vectors of channel numbers to include in self-contained groups for correction}
+
+\item{cycles}{Integer: number of iterations of correction to perform}
 
 \item{cores}{Integer: number of cores to use for parallel calculations}
 }
