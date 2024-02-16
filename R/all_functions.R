@@ -16,53 +16,87 @@
 #' @param stride      Integer: distance between top left corner of each tile in pixels
 #' @param pix_ss      Integer: number of pixels to randomly subsample for calculating MI or correlation
 #' @param enhance     Logical: whether to enhance contrast in the corrected image
+#' @param groups      List: vectors of channel numbers to include in self-contained groups for correction
 #' @param cycles      Integer: number of iterations of correction to perform
 #' @param cores       Integer: number of cores to use for parallel calculations
 #' @return      Nothing: a corrected .tif and a .csv of the correction matrix are saved to the working directory
 #' @export
-mosaic_picasso <- function(file, method="MI", q_thr=0.5, tile_size=50, stride=50, pix_ss="all", cycles=1,
-                           enhance=T, cores=NULL) {
+mosaic_picasso <- function(file, method="MI", q_thr=0.5, tile_size=50, stride=50, pix_ss="all", enhance=T, 
+                           groups=NULL, cycles=1, cores=NULL) {
   print("Loading image.")
-  img <- load_image(file)                                                       # Load img to 3d array format
-  n_ch <- dim(img)[3]                                                           # Number of channels
+  IMG <- load_image(file)                                                       # Load img to 3d array format
+  N_CH <- dim(IMG)[3]                                                           # Number of channels
   if (enhance) {                                                                # If image will be contrast-enhanced
-    frc_sat <- rep(NA, n_ch)                                                    # Get fraction of saturated pix
-    for (i in 1:n_ch) {                                                         # in each channel
-      frc_sat[i] <- sum(img[,,i] == 255) / prod(dim(img)[1:2])
+    frc_sat <- rep(NA, N_CH)                                                    # Get fraction of saturated pix
+    for (i in 1:N_CH) {                                                         # in each channel
+      frc_sat[i] <- sum(IMG[,,i] == 255) / prod(dim(IMG)[1:2])
     }
   }
-  p_mat_0 <- diag(n_ch)                                                         # Initial P matrix                                                        
-  p_mat_1 <- diag(n_ch)                                                         # Updated P matrix
-  print("Calculating correction matrix.")
-  for (i in 1:cycles) {                                                         # For each cycle of correction
-    print(paste("   Cycle ", i,".",sep=""))
-    if (i > 1) {                                                                # Correct image via initial p matrix
-      tmp_img <- correct_image(img, p_mat_0)
-    } else {                                                                    # Skip this step if this is 1st cycle
-      tmp_img <- img
+  if (!is.null(groups)) {
+    print("Splitting image into channel groups for correction.")
+    if (any(table(unlist(groups)) > 1)) {
+      stop("Error: Each channel can only be used in one group.")
     }
-    tmp_mat <- calc_Pmat(tmp_img, method, q_thr, tile_size, stride, pix_ss, cores)# New P matrix from corrected image 
-    p_mat_1 <- update_Pmat(p_mat_0, tmp_mat)                                    # Updated P matrix = initial * new
-    p_mat_0 <- p_mat_1                                                          # Updated P matrix becomes initial
+    if (length(unlist(groups)) != N_CH) {
+      print("Warning: Channels that are not included in a group will not be used for correction.")
+    }
+    img <- vector("list", length(groups))
+    mat <- vector("list", length(groups))
+    names(mat) <- paste("G",1:length(groups))
+    for (g in 1:length(groups)) {
+      img[[g]] <- IMG[,,groups[[g]],drop=F]
+    }
+  } else {
+    img <- vector("list", 1)
+    img[[1]] <- IMG
+    mat <- vector("list", 1)
   }
-  print("Applying correction matrix.")
-  img <- correct_image(img, p_mat_1)                                            # Correct image via updated P matrix
+  for (g in 1:length(img)) {
+    print(paste("Beginning channel group ", g, ".", sep=""))
+    n_ch <- dim(img[[g]])[3]                                                    # Number of channels in this group
+    p_mat_0 <- diag(n_ch)                                                       # Initial P matrix                                                        
+    p_mat_1 <- diag(n_ch)                                                       # Updated P matrix
+    print("Calculating correction matrix.")
+    for (i in 1:cycles) {                                                       # For each cycle of correction
+      print(paste("   Cycle ", i,".",sep=""))
+      if (i > 1) {                                                              # Correct image via initial p matrix
+        tmp_img <- correct_image(img[[g]], p_mat_0)
+      } else {                                                                  # Skip this step if this is 1st cycle
+        tmp_img <- img[[g]]
+      }
+      tmp_mat <- calc_Pmat(tmp_img, method, q_thr, tile_size, stride, pix_ss, cores)# New P matrix from corrected image 
+      p_mat_1 <- update_Pmat(p_mat_0, tmp_mat)                                  # Updated P matrix = initial * new
+      p_mat_0 <- p_mat_1                                                        # Updated P matrix becomes initial
+    }
+    print("Applying correction matrix.")
+    img[[g]] <- correct_image(img[[g]], p_mat_1)                                # Correct image via updated P matrix
+    mat[[g]] <- p_mat_1
+  }
+  for (i in 1:N_CH) {
+    grp <- which(unlist(lapply(groups, function(x,y) {y %in% x}, y=i)))
+    idx <- which(groups[[grp]] == i)
+    IMG[,,i] <- img[[grp]][,,idx]
+  }
   if (enhance) {                                                                # If contrast-enhancing final image
     print("Enhancing contrast.")
-    for (i in 1:n_ch) {
-      mult <- unname(quantile(c(img[,,i]), 1-frc_sat[i]))                       # Multiplier to brighten image
+    for (i in 1:N_CH) {
+      if (frc_sat[i] == 0) {
+        mult <- 255
+      } else {
+        mult <- unname(quantile(c(IMG[,,i]), 1-frc_sat[i]))                     # Multiplier to brighten image
+      }
       if (mult > 0) {                                                           # If the image is not totally black
-        img[,,i] <- round(img[,,i] * (255/mult))                                # Brighten image and round pixels
-        img[,,i][img[,,i] > 255] <- 255                                         # Any pixels > 255 are set to 255
+        IMG[,,i] <- round(IMG[,,i] * (255/mult))                                # Brighten image and round pixels
+        IMG[,,i][IMG[,,i] > 255] <- 255                                         # Any pixels > 255 are set to 255
       }
     }
   }
   print("Saving corrected image.")
   out_file <- paste(sub(".tif", "", file), "_NEW.tif", sep="")                  # Add _NEW to file name
-  ijtiff::write_tif(img, out_file, overwrite=T)                                 # Save corrected image
+  ijtiff::write_tif(IMG, out_file, overwrite=T)                                 # Save corrected image
   print("Saving correction matrix.")
-  out_file <- paste(sub(".tif", "", file), "_MAT.csv", sep="")                  # Add _MAT to file name
-  write.csv(p_mat_1, out_file)                                                  # Save correction matrix
+  out_file <- paste(sub(".tif", "", file), "_MAT.xlsx", sep="")                  # Add _MAT to file name
+  openxlsx::write.xlsx(mat, out_file)                                           # Save correction matrix
   print("Finished.")
 }
 
@@ -110,8 +144,8 @@ calc_Pmat <- function(img, method, q_thr, tile_size, stride, pix_ss, cores) {
   doParallel::registerDoParallel(cl = make_cluster)            
   `%dopar%` <- foreach::`%dopar%`                              
   a <- foreach::foreach (i = c(1:nrow(idx)), .export=c('calc_scalar','calc_ssim','calc_MI','calc_corr')) %dopar% {
-                                                         calc_scalar(img_chp, idx[i,1], idx[i,2], method, q_thr, pix_ss)
-                                                       }
+    calc_scalar(img_chp, idx[i,1], idx[i,2], method, q_thr, pix_ss)
+  }
   parallel::stopCluster(cl = make_cluster) 
   a <- unlist(a)
   k <- 1
@@ -190,7 +224,12 @@ calc_scalar <- function(img_chp, i, j, method, q_thr, pix_ss) {
   }
   a_try <- as.list(seq(0,1,by=0.01))
   obj_out <- lapply(a_try, obj_func, img1=img_chp_sub[[1]], img2=img_chp_sub[[2]])
-  return(unlist(a_try)[which.min(unlist(obj_out))])
+  out <- unlist(a_try)[which.min(unlist(obj_out))]
+  if (length(out)==0) {
+    return(0) # If cor/MI is NA for every alpha value, choose 0 as the alpha value
+  } else {
+    return(out)
+  }
 }
 
 #' Calculate SSIM between Tiles of Two Channels
@@ -229,8 +268,12 @@ calc_corr <- function(img1, img2, pix_ss) {
     img1 <- img1[keep_pix]
     img2 <- img2[keep_pix]
   }
-  cor_coef <- abs(cor(img1, img2))
-  return(cor_coef)
+  if (length(unique(img1)) == 0 || length(unique(img2))==0) {
+    return(NA) # If there is no variation in an img, cannot compute correlation.
+  } else {
+    cor_coef <- abs(cor(img1, img2))
+    return(cor_coef)
+  }
 }
 
 #' Calculate Mutual Information of Pixel Values between Two Channels
@@ -253,21 +296,25 @@ calc_MI <- function(img1, img2, pix_ss) {
     img1 <- img1[keep_pix]
     img2 <- img2[keep_pix]
   }
-  img1 <- round(img1)
-  img2 <- round(img2)
-  img2 <- img2 + min(img2)
-  ent1 <- unname(table(img1))
-  ent2 <- unname(table(img2))
-  ent1 <- ent1 / sum(ent1)
-  ent2 <- ent2 / sum(ent2)
-  ent1 <- -sum(ent1 * log2(ent1))
-  ent2 <- -sum(ent2 * log2(ent2))
-  imgb <- img1*(max(img2)+1) + img2
-  entb <- unname(table(imgb)) 
-  entb <- entb / sum(entb)
-  entb <- -sum(entb * log2(entb))
-  mi <- ent1 + ent2 - entb
-  return((2*mi)/(ent1 + ent2))
+  if (length(unique(img1)) == 0 || length(unique(img2))==0) {
+    return(NA) # If there is no variation in an img, cannot compute mutual information.
+  } else {
+    img1 <- round(img1)
+    img2 <- round(img2)
+    img2 <- img2 + min(img2)
+    ent1 <- unname(table(img1))
+    ent2 <- unname(table(img2))
+    ent1 <- ent1 / sum(ent1)
+    ent2 <- ent2 / sum(ent2)
+    ent1 <- -sum(ent1 * log2(ent1))
+    ent2 <- -sum(ent2 * log2(ent2))
+    imgb <- img1*(max(img2)+1) + img2
+    entb <- unname(table(imgb)) 
+    entb <- entb / sum(entb)
+    entb <- -sum(entb * log2(entb))
+    mi <- ent1 + ent2 - entb
+    return((2*mi)/(ent1 + ent2))
+  }
 }
 
 #' Update a Correction Matrix
