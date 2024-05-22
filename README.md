@@ -2,18 +2,15 @@
 Mosaic-PICASSO, an R Package
 
 ## Overview
-Mosaic-PICASSO is an R package designed for the cleaning of multiplex images of biological tissues. Using the PICASSO algorithm developed by Seo et al. (https://doi.org/10.1038/s41467-022-30168-z) and the Mosaic addition developed by Cang et al. (https://doi.org/10.1101/2023.07.06.547878), Mosaic-PICASSO infers and removes artefacts due to autofluorescence and spillover from multiplex images. 
+Mosaic-PICASSO is an algorithm that infers and removes artefacts due to autofluorescence and spillover from multiplex images of biological tissues. The PICASSO algorithm was developed by Seo et al. (https://doi.org/10.1038/s41467-022-30168-z) and the Mosaic addition by Cang et al. (https://doi.org/10.1093/bioinformatics/btad784). This R package implementation includes a few extra features, including the option to use correlation instead of mutual information as an internal metric, the option to split channels into mutually exclusive groups for independent correction, and the option to enhance contrast after correction. 
 
 ## Contents
 In addition to the source R code, this package also includes:
 - documentation detailing the purpose, inputs, parameters, and outputs of each function
 - a tutorial in vignette and html formats describing how to use Mosaic-PICASSO
 
-## Current Status
-A manuscript that details and demonstrates Mosaic-PICASSO is posted on bioRxiv (https://doi.org/10.1101/2023.07.06.547878). This R package provides an easy implementation of that algorithm, plus a few minor extra features.
-
 ## Installation
-Once Mosaic-PICASSO is switched to a public repository, it can be installed from Github:
+The Mosaic-PICASSO R package can be installed from Github:
 - Install the R package "devtools" if you don't already have it.
 - Run the command devtools::install_github("eschrom/MosaicPICASSO", build_vignettes = TRUE)
 - Restart your R session
