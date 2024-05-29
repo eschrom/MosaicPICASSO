@@ -7,15 +7,17 @@ Mosaic-PICASSO is an algorithm that infers and removes artefacts due to autofluo
 ## Contents
 In addition to the source R code, this package also includes:
 - documentation detailing the purpose, inputs, parameters, and outputs of each function
-- a tutorial in vignette and html formats describing how to use Mosaic-PICASSO
+- a tutorial describing how to use Mosaic-PICASSO
 
 ## Installation
 The Mosaic-PICASSO R package can be installed from Github:
 - Install the R package "devtools" if you don't already have it.
-- Run the command devtools::install_github("eschrom/MosaicPICASSO", build_vignettes = TRUE)
+- Run the command devtools::install_github("eschrom/MosaicPICASSO")
 - Restart your R session
 
 Installation should only take a few minutes, but perhaps more if many of the dependencies must also be installed or updated.
+
+After installation, to access the tutorial, locate the MosaicPICASSO folder and open the doc subfolder. "MosaicPICASSO_Tutorial.html" is the tutorial.
 
 ## Computing Requirements and Runtimes
 This implementation of MosaicPICASSO was developed on a PC laptop with a 11th Gen Intel(R) Core(TM) i9-11900H (2.50 GHz) processor and 16.0 GB RAM, running Windows 10 64-bit operating system, and using R version 4.3.1 "Beagle Scouts." Computing times scale with the size of the image and the number of channels; in general, computing times will be minutes to hours.
