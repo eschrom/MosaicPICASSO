@@ -227,10 +227,18 @@ calc_scalar <- function(img_chp, i, j, method, q_thr, pix_ss) {
     }
   }
   a_try <- as.list(seq(0,1,by=0.01))                                            # Try a range of scaling factors &
-  obj_out <- lapply(a_try, obj_func, img1=img_chp_sub[[1]], img2=img_chp_sub[[2]]) # list the MI or |cor| for each
-  out <- unlist(a_try)[which.min(unlist(obj_out))]                              # Choose scaling factor value that
-  if (length(out)==0) {                                                         # minimizes MI or |cor|
-    return(0)                                                                   # If cor/MI is always NA, 
+  obj_out <- unlist(lapply(a_try, obj_func, img1=img_chp_sub[[1]], img2=img_chp_sub[[2]])) # get MI or |Cor| for each
+  if (method == "Cor") {                                                        # Choose scaling factor value that
+    out <- unlist(a_try)[which.min(obj_out)]                                    # minimizes MI or |Cor|,
+  } else if (method == "MI") {                                                  # directly for |Cor| or after a 
+    nn <- FNN::knn.index(1:length(obj_out), k=11)                               # rolling mean w/ window 11 
+    nn[,11] <- 1:length(obj_out)                                                # to smooth numerical hiccups for MI
+    obj_out <- array(obj_out[nn], dim=dim(nn))                                  # e.g. subtracting scaled img 1 from
+    obj_out <- rowMeans(obj_out)                                                # img 2 results in more pix val bins
+    out <- unlist(a_try)[which.min(obj_out)]                                    # so a=0 has unfairly low MI vs. a>0
+  }      
+  if (length(out)==0) {                                                         # minimizes MI or |Cor|
+    return(0)                                                                   # If Cor/MI is always NA, 
   } else {                                                                      # choose 0 as the scaling factor
     return(out)
   }
